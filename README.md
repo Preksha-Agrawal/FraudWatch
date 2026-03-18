@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # FraudWatch — Real-Time Credit Card Fraud Detection
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
@@ -202,3 +203,6 @@ This system is designed to help:
 
 **Preksha Agrawal** — B.Tech CS, KIIT University (CGPA: 9.2)  
 [LinkedIn](https://linkedin.com/in/preksha-agrawal-ba0202321) · [GitHub](https://github.com/Preksha-Agrawal)
+=======
+# FraudWatch
+>>>>>>> b0f5ae599c784c08a3cee513d3101c553339329f
