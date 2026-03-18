@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>FraudWatch — Analytics Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0f1117;--card:#1a1d27;--card2:#21253a;
+      --border:#2a2f45;--text:#e8eaf0;--muted:#8b92a8;
+      --primary:#4f8ef7;--success:#2ecc71;--danger:#e74c3c;
+      --warn:#f39c12;--purple:#a855f7;--radius:12px;
+    }
+    body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text)}
+    nav{background:var(--card);border-bottom:1px solid var(--border);padding:.9rem 2rem;
+        display:flex;align-items:center;justify-content:space-between}
+    .nav-brand{display:flex;align-items:center;gap:.7rem}
+    .nav-logo{width:32px;height:32px;background:var(--primary);border-radius:8px;
+              display:flex;align-items:center;justify-content:center;font-size:1rem}
+    .nav-title{font-size:1.1rem;font-weight:700}
+    .nav-sub{font-size:.75rem;color:var(--muted)}
+    .nav-links{display:flex;gap:.5rem}
+    .nav-links a{padding:.4rem .9rem;border-radius:7px;font-size:.85rem;text-decoration:none;
+                 color:var(--muted);transition:background .2s}
+    .nav-links a:hover{background:var(--card2);color:var(--text)}
+    .nav-links a.active{background:var(--primary);color:#fff}
+
+    .container{max-width:1100px;margin:2rem auto;padding:0 1rem}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem}
+    .card-title{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;
+                letter-spacing:.08em;margin-bottom:1.2rem}
+
+    /* STAT CARDS ROW */
+    .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+    @media(max-width:700px){.stat-row{grid-template-columns:1fr 1fr}}
+    .stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+               padding:1.2rem 1.4rem}
+    .stat-icon{font-size:1.4rem;margin-bottom:.5rem}
+    .stat-val{font-size:1.6rem;font-weight:700}
+    .stat-lbl{font-size:.75rem;color:var(--muted);margin-top:.2rem}
+    .stat-sub{font-size:.72rem;margin-top:.3rem}
+
+    /* CHART GRID */
+    .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.5rem}
+    @media(max-width:700px){.chart-grid{grid-template-columns:1fr}}
+    .chart-full{margin-bottom:1.2rem}
+    canvas{max-height:260px}
+
+    /* FEATURE TABLE */
+    .feat-table{width:100%;border-collapse:collapse}
+    .feat-table th{text-align:left;font-size:.75rem;color:var(--muted);
+                   text-transform:uppercase;letter-spacing:.06em;
+                   padding:.5rem .75rem;border-bottom:1px solid var(--border)}
+    .feat-table td{padding:.6rem .75rem;font-size:.85rem;border-bottom:1px solid var(--border)}
+    .feat-table tr:last-child td{border-bottom:none}
+    .rank-badge{display:inline-block;width:22px;height:22px;border-radius:50%;
+                background:var(--card2);font-size:.72rem;text-align:center;line-height:22px;color:var(--muted)}
+    .imp-bar-bg{height:6px;background:#1e2235;border-radius:3px;overflow:hidden;width:120px}
+    .imp-bar{height:100%;border-radius:3px;background:var(--primary)}
+
+    .note{font-size:.75rem;color:var(--muted);background:var(--card2);
+          border-radius:7px;padding:.6rem .8rem;line-height:1.6}
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">🛡</div>
+    <div>
+      <div class="nav-title">FraudWatch</div>
+      <div class="nav-sub">Real-Time Fraud Detection System</div>
+    </div>
+  </div>
+  <div class="nav-links">
+    <a href="/">Checker</a>
+    <a href="/dashboard" class="active">Dashboard</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- STAT CARDS -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-val">{{ '{:,}'.format(meta.n_train + meta.n_test) }}</div>
+      <div class="stat-lbl">Training Transactions</div>
+      <div class="stat-sub" style="color:var(--primary)">Kaggle-mirrored dataset</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🎯</div>
+      <div class="stat-val" style="color:var(--success)">{{ meta.roc_auc }}</div>
+      <div class="stat-lbl">ROC-AUC Score</div>
+      <div class="stat-sub" style="color:var(--muted)">Industry benchmark: 0.95+</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🔍</div>
+      <div class="stat-val" style="color:var(--warn)">{{ meta.fraud_rate }}%</div>
+      <div class="stat-lbl">Fraud Rate in Dataset</div>
+      <div class="stat-sub" style="color:var(--muted)">Highly imbalanced</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-val" style="color:var(--purple)">{{ meta.recall }}</div>
+      <div class="stat-lbl">Recall Score</div>
+      <div class="stat-sub" style="color:var(--muted)">Fraud cases caught</div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 1 -->
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-title">Dataset Class Distribution</div>
+      <canvas id="classChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Model Performance Metrics</div>
+      <canvas id="metricsChart"></canvas>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 2 -->
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-title">Confusion Matrix (Test Set)</div>
+      <canvas id="cmChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Top Feature Importances</div>
+      <canvas id="featChart"></canvas>
+    </div>
+  </div>
+
+  <!-- FEATURE TABLE -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">Feature Importance Breakdown</div>
+    <table class="feat-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Feature</th>
+          <th>Importance Score</th>
+          <th>Visual</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set descriptions = {
+          'V14': 'Strongest fraud predictor — captures transaction velocity/pattern anomalies',
+          'V17': 'Time-based behavioral pattern — unusually high in fraud transactions',
+          'V18': 'Card usage frequency deviation — key fraud signal',
+          'V11': 'Merchant category deviation — fraud often hits unusual categories',
+          'V10': 'Geographic/IP anomaly indicator',
+          'V5':  'Card present vs not-present signal',
+          'V12': 'Transaction amount relative to cardholder norm',
+          'V4':  'Cross-border transaction indicator',
+          'V3':  'Device fingerprint anomaly score',
+          'V2':  'Time-of-day behavioral deviation'
+        } %}
+        {% for i in range(meta.top_features|length) %}
+        <tr>
+          <td><span class="rank-badge">{{ i+1 }}</span></td>
+          <td><b>{{ meta.top_features[i] }}</b></td>
+          <td>{{ meta.top_importances[i] }}</td>
+          <td>
+            <div class="imp-bar-bg">
+              <div class="imp-bar" style="width:{{ (meta.top_importances[i] / meta.top_importances[0] * 100)|int }}%"></div>
+            </div>
+          </td>
+          <td style="color:var(--muted);font-size:.8rem">
+            {{ descriptions.get(meta.top_features[i], 'PCA-transformed anonymised feature') }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note" style="margin-bottom:2rem">
+    <b>About this model:</b> Random Forest classifier trained on {{ '{:,}'.format(meta.n_train) }} transactions with <code>class_weight={0:1, 1:100}</code> to handle the extreme class imbalance ({{ meta.fraud_rate }}% fraud). Features V1–V28 are PCA components from the Kaggle Credit Card Fraud Detection dataset — the original raw features (merchant, location, card details) are anonymised for privacy. Replace <code>model/train.py</code>'s data block with <code>pd.read_csv('creditcard.csv')</code> to train on the real dataset.
+  </div>
+
+</div>
+
+<script>
+const chartDefaults = {
+  plugins: { legend: { labels: { color: '#8b92a8', font: { size: 12 } } } },
+  scales: {
+    x: { ticks: { color: '#8b92a8' }, grid: { color: '#2a2f45' } },
+    y: { ticks: { color: '#8b92a8' }, grid: { color: '#2a2f45' } }
+  }
+};
+
+// 1. Class Distribution (doughnut)
+new Chart(document.getElementById('classChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Legitimate (99.83%)', 'Fraud (0.17%)'],
+    datasets: [{
+      data: [284315, 492],
+      backgroundColor: ['#2ecc71', '#e74c3c'],
+      borderColor: ['#1a1d27'],
+      borderWidth: 3
+    }]
+  },
+  options: {
+    plugins: {
+      legend: { labels: { color: '#8b92a8' } }
+    }
+  }
+});
+
+// 2. Metrics radar
+new Chart(document.getElementById('metricsChart'), {
+  type: 'radar',
+  data: {
+    labels: ['ROC-AUC', 'Precision', 'Recall', 'F1 Score', 'Avg Precision'],
+    datasets: [{
+      label: 'FraudWatch Model',
+      data: [
+        {{ meta.roc_auc * 100 }},
+        {{ meta.precision * 100 }},
+        {{ meta.recall * 100 }},
+        {{ meta.f1 * 100 }},
+        {{ meta.avg_precision * 100 }}
+      ],
+      backgroundColor: 'rgba(79,142,247,0.15)',
+      borderColor: '#4f8ef7',
+      pointBackgroundColor: '#4f8ef7',
+      borderWidth: 2
+    }]
+  },
+  options: {
+    scales: {
+      r: {
+        min: 80, max: 100,
+        ticks: { color: '#8b92a8', stepSize: 5 },
+        grid: { color: '#2a2f45' },
+        pointLabels: { color: '#8b92a8', font: { size: 11 } }
+      }
+    },
+    plugins: { legend: { labels: { color: '#8b92a8' } } }
+  }
+});
+
+// 3. Confusion matrix as bar
+const cm = {{ meta.confusion_matrix | tojson }};
+new Chart(document.getElementById('cmChart'), {
+  type: 'bar',
+  data: {
+    labels: ['True Negative\n(Legit → Legit)', 'False Positive\n(Legit → Fraud)', 'False Negative\n(Fraud → Legit)', 'True Positive\n(Fraud → Fraud)'],
+    datasets: [{
+      label: 'Count',
+      data: [cm[0][0], cm[0][1], cm[1][0], cm[1][1]],
+      backgroundColor: ['#2ecc71','#f39c12','#e74c3c','#4f8ef7'],
+      borderRadius: 6
+    }]
+  },
+  options: {
+    ...chartDefaults,
+    plugins: { legend: { display: false } }
+  }
+});
+
+// 4. Feature importances
+new Chart(document.getElementById('featChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ meta.top_features | tojson }},
+    datasets: [{
+      label: 'Importance',
+      data: {{ meta.top_importances | tojson }},
+      backgroundColor: '#4f8ef7',
+      borderRadius: 5
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    ...chartDefaults,
+    plugins: { legend: { display: false } }
+  }
+});
+</script>
+</body>
+</html>
